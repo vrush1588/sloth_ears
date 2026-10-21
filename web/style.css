@@ -92,7 +92,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .hero-art::before, .hero-art::after { content: ""; position: absolute; border: 1px solid rgb(120 141 111 / 24%); border-radius: 50%; }
 .hero-art::before { width: 290px; height: 180px; transform: rotate(-24deg); }
 .hero-art::after { width: 290px; height: 180px; transform: rotate(24deg); }
-.hero-sloth { z-index: 1; width: min(100%, 315px); filter: drop-shadow(0 12px 7px rgb(85 70 49 / 11%)); animation: sloth-breathe 4.5s ease-in-out infinite; }
+.hero-sloth { z-index: 1; width: min(100%, 315px); height: auto; filter: drop-shadow(0 12px 7px rgb(85 70 49 / 11%)); animation: sloth-breathe 4.5s ease-in-out infinite; }
 .art-caption { position: absolute; right: 8px; bottom: 0; color: #82786e; font: italic 13px Georgia, serif; }
 @keyframes sloth-breathe { 0%, 100% { transform: translateY(1px) rotate(-.4deg); } 50% { transform: translateY(-4px) rotate(.4deg); } }
 
@@ -154,8 +154,8 @@ textarea.control.text-area { display: block; min-height: 220px; padding: 13px; r
 .sparkle-two { top: 28px; right: 35%; font-size: 9px; }
 .progress-line { height: 5px; position: relative; z-index: 1; border-radius: 99px; background: #e8e2d9; }
 .progress-fill { width: 0; height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg, #8ba180, #597d60); transition: width .7s ease; }
-.sloth-marker { width: 58px; height: 58px; position: absolute; z-index: 2; top: -45px; left: 0; display: block; transition: left .8s cubic-bezier(.2,.7,.25,1); transform: translateX(-50%); }
-.sloth-marker svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 4px rgb(70 54 44 / 14%)); }
+.sloth-marker { width: 62px; height: 50px; position: absolute; z-index: 2; top: -42px; left: 0; display: block; transition: left .8s cubic-bezier(.2,.7,.25,1); transform: translateX(-50%); }
+.sloth-marker img { width: 100%; height: auto; display: block; filter: drop-shadow(0 4px 4px rgb(70 54 44 / 14%)); }
 .progress-labels { display: flex; justify-content: space-between; margin-top: 9px; color: #898077; font-size: 10px; }
 .progress-labels span:nth-child(2) { color: var(--green); font-weight: 750; }
 .progress-details { display: grid; grid-template-columns: minmax(150px, .7fr) 1.3fr; gap: 14px; align-items: center; padding: 15px 16px; border-radius: 13px; background: #fbf7f2; }
@@ -254,7 +254,7 @@ textarea.control.text-area { display: block; min-height: 220px; padding: 13px; r
   .hero h1 { margin-top: 16px; font-size: clamp(39px, 11vw, 54px); }
   .hero-description { font-size: 13px; }
   .hero-assurance { margin-top: 18px; }
-  .hero-art { min-height: 210px; margin-top: 3px; }
+  .hero-art { min-height: 210px; margin-top: 3px; padding-bottom: 30px; }
   .sun-orbit { width: 185px; height: 185px; }
   .hero-art::before, .hero-art::after { width: 230px; height: 150px; }
   .hero-sloth { width: min(88%, 280px); }
