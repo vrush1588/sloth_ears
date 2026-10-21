@@ -131,6 +131,13 @@ def _make_handler(web_root: Path):
             if route == "/api/models":
                 self._get_models()
                 return
+            if route == "/api/whisper-models":
+                downloaded = core.downloaded_whisper_models()
+                self._send_json(HTTPStatus.OK, {"models": [
+                    {"name": size, "downloaded": size in downloaded}
+                    for size in core.WHISPER_SIZES
+                ]})
+                return
             self._serve_static(route)
 
         def do_POST(self) -> None:
@@ -194,7 +201,7 @@ def _make_handler(web_root: Path):
                 raise ValueError("'language' must be null, 'en', 'hi', or 'mr'.")
             if language not in LANGUAGES:
                 raise ValueError("'language' must be null, 'en', 'hi', or 'mr'.")
-            ai_model = data.get("ai_model", "llama3.2:3b")
+            ai_model = data.get("ai_model", core.DEFAULT_MODEL)
             if not isinstance(ai_model, str) or not ai_model.strip():
                 raise ValueError("'ai_model' must be a non-empty string.")
 
@@ -228,10 +235,10 @@ def _make_handler(web_root: Path):
                     raise ValueError("'name' must be a string of at most 200 characters.")
                 return {"text_or_files": text, "name": Path(name).name or "Pasted text"}
 
-            if not isinstance(path_value, str) or not path_value.strip():
+            if not isinstance(path_value, str) or not core.clean_path(path_value):
                 raise ValueError("'path' must be a non-empty path.")
             try:
-                path = Path(path_value).expanduser().resolve(strict=True)
+                path = Path(core.clean_path(path_value)).expanduser().resolve(strict=True)
             except (OSError, RuntimeError, ValueError) as error:
                 raise ValueError("'path' must be an existing file or folder.") from error
             if path.is_file() and path.suffix.lower() not in core.TEXT_EXT:
@@ -242,15 +249,19 @@ def _make_handler(web_root: Path):
 
         @staticmethod
         def _validate_media_options(data: dict[str, Any]) -> dict[str, Any]:
+            # 'folder' may also name a single audio or video file.
             folder_value = data.get("folder")
-            if not isinstance(folder_value, str) or not folder_value.strip():
+            if not isinstance(folder_value, str) or not core.clean_path(folder_value):
                 raise ValueError("'folder' must be a non-empty path.")
+            missing = "'folder' must be an existing folder or audio/video file."
             try:
-                folder = Path(folder_value).expanduser().resolve(strict=True)
+                folder = Path(core.clean_path(folder_value)).expanduser().resolve(strict=True)
             except (OSError, RuntimeError, ValueError) as error:
-                raise ValueError("'folder' must exist and be a directory.") from error
-            if not folder.is_dir():
-                raise ValueError("'folder' must exist and be a directory.")
+                raise ValueError(missing) from error
+            if folder.is_file() and folder.suffix.lower() not in core.AUDIO_EXT:
+                raise ValueError(f"{folder.name} is not a supported audio or video file.")
+            if not folder.is_file() and not folder.is_dir():
+                raise ValueError(missing)
 
             since_hours = data.get("since_hours", 24)
             if isinstance(since_hours, bool) or not isinstance(since_hours, (int, float)):

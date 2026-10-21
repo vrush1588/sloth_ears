@@ -9,7 +9,7 @@ While internet access is available, download the Ollama model configured in
 Sloth Ears:
 
 ```console
-ollama pull llama3.2:3b
+ollama pull gemma3:4b
 ```
 
 Download the faster-whisper model you plan to use by initializing it once. For
@@ -28,7 +28,7 @@ With the Ollama service running and Wi-Fi disabled, run the CLI against a folder
 containing recordings:
 
 ```console
-python -m sloth_ears "C:\Users\you\Recordings" --since 24 --whisper small --model llama3.2:3b --offline
+python -m sloth_ears "C:\Users\you\Recordings" --since 24 --whisper small --model gemma3:4b --offline
 ```
 
 The `--offline` flag is retained for compatibility; downloads are disabled for

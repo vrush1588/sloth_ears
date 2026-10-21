@@ -20,7 +20,7 @@ with a local Ollama model. Video frames are not analyzed.
    model:
 
    ```console
-   ollama pull llama3.2:3b
+   ollama pull gemma3:4b
    ```
 
 2. Install the Python dependency:
@@ -45,14 +45,15 @@ with a local Ollama model. Video frames are not analyzed.
 
 ## CLI
 
-Run the CLI on a folder of recordings:
+Run the CLI on a folder of recordings, or on a single audio or video file:
 
 ```console
-python -m sloth_ears "C:\Users\you\Recordings" --since 24 --whisper small --model llama3.2:3b --language en
+python -m sloth_ears "C:\Users\you\Recordings" --since 24 --whisper small --model gemma3:4b --language en
 ```
 
 Use `--language hi` for Hindi, `--language mr` for Marathi, or omit the option
-for automatic detection. `--since` is in hours; the web app also offers a
+for automatic detection. `--since` is in hours and applies to folders only; a
+single file is always processed. The web app also offers a
 7-day or all-recordings range. The `--offline` option is retained for
 compatibility; model downloads are disabled during runs.
 
@@ -91,7 +92,7 @@ an optional `"name"`) or `"path"`, plus `"style"`.
 
 **Privacy:** the input text is kept in memory only. Only the digest is saved
 (the summary, key points and to-dos). Summaries are written in your own words:
-any line that copies four or more words straight from the input is dropped.
+any line that copies six or more words in a row from the input is dropped.
 
 **Language:** summaries and key points are written in the input language. Pick
 Hindi or Marathi under **Language**, or leave it on Auto-detect. Auto-detect

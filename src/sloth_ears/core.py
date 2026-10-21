@@ -26,8 +26,10 @@ TEXT_EXT = {".txt", ".md"}
 CHUNK = 5000
 MAX_TEXT_CHARS = 200_000
 MAX_POINTS = 8
+ECHO_WORDS = 6
 STYLES = ("line", "points", "both")
 DEFAULT_HOST = "http://localhost:11434"
+DEFAULT_MODEL = "gemma3:4b"
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 DIGEST_DIR = Path.home() / "Documents" / "SlothEars" / "Digests"
 DIGEST = DIGEST_DIR / "digest.md"
@@ -66,6 +68,10 @@ ProgressCallback = Callable[[int, int, str, str], None]
 
 class LocalModelError(RuntimeError):
     """The local Ollama request failed while creating a digest."""
+
+
+class WhisperModelMissing(RuntimeError):
+    """The chosen Whisper model has not been downloaded to this computer."""
 
 
 class _LocalRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -211,11 +217,64 @@ def _walk_files(folder: str | Path, extensions: set[str]) -> list[Path]:
     return sorted(files, key=lambda path: path.stat().st_mtime)
 
 
+WHISPER_SIZES = ("tiny", "base", "small", "medium")
+
+
+def _hf_hub_cache() -> Path:
+    # Same lookup order as huggingface_hub, which faster-whisper downloads with.
+    if os.environ.get("HF_HUB_CACHE"):
+        return Path(os.environ["HF_HUB_CACHE"]).expanduser()
+    if os.environ.get("HF_HOME"):
+        return Path(os.environ["HF_HOME"]).expanduser() / "hub"
+    return Path.home() / ".cache" / "huggingface" / "hub"
+
+
+def downloaded_whisper_models() -> list[str]:
+    """Standard Whisper sizes already in the local cache, smallest first."""
+    cache = _hf_hub_cache()
+    return [
+        size for size in WHISPER_SIZES
+        if any(
+            (snapshot / "model.bin").is_file()
+            for snapshot in (
+                cache / f"models--Systran--faster-whisper-{size}" / "snapshots"
+            ).glob("*")
+        )
+    ]
+
+
+def missing_whisper_message(size: str) -> str:
+    available = downloaded_whisper_models()
+    choice = (
+        f"Choose a downloaded one in Settings ({', '.join(available)}), or download"
+        if available else "Download"
+    )
+    return (
+        f"The Whisper '{size}' speech model isn't downloaded yet. {choice} it once "
+        "while online: python -c \"from faster_whisper import WhisperModel; "
+        f"WhisperModel('{size}', device='cpu', compute_type='int8')\""
+    )
+
+
+def clean_path(value: str) -> str:
+    """Trim spaces and the quotes Windows adds with "Copy as path"."""
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1].strip()
+    return value
+
+
 def find_media(folder: str | Path, since_hours: float) -> list[Path]:
+    """Recent media in a folder, or a single media file whatever its age."""
+    path = Path(folder).expanduser().resolve()
+    if path.is_file():
+        if path.suffix.lower() not in AUDIO_EXT:
+            raise ValueError(f"{path.name} is not a supported audio or video file.")
+        return [path]
     cutoff = time.time() - since_hours * 3600
     return [
-        path for path in _walk_files(folder, AUDIO_EXT)
-        if path.stat().st_mtime >= cutoff
+        media for media in _walk_files(path, AUDIO_EXT)
+        if media.stat().st_mtime >= cutoff
     ]
 
 
@@ -317,11 +376,16 @@ def _ask(
         body,
         {"Content-Type": "application/json"},
     )
-    with open_local_url(request, timeout=180) as response:
-        payload = json.load(response)
-    if not isinstance(payload, dict) or not isinstance(payload.get("response"), str):
-        raise ValueError("Ollama returned an unexpected response.")
-    return _parse_answer(payload["response"], style)
+    # Small models occasionally reply with an empty object; ask once more.
+    for _ in range(2):
+        with open_local_url(request, timeout=180) as response:
+            payload = json.load(response)
+        if not isinstance(payload, dict) or not isinstance(payload.get("response"), str):
+            raise ValueError("Ollama returned an unexpected response.")
+        answer = _parse_answer(payload["response"], style)
+        if answer.summary or answer.points or answer.actions:
+            break
+    return answer
 
 
 def _as_text(value) -> str:
@@ -420,10 +484,12 @@ def _without_transcript_echo(answer: Digest, source_text: str) -> Digest:
         normalized = _normalize(value)
         if not normalized:
             return False
-        if normalized in source or source in normalized:
+        if source in normalized:
             return True
+        # Short shared phrases are normal (Hindi and Marathi especially lean on
+        # short function words), so only a copied run of ECHO_WORDS counts.
         output_words = [word for word in map(_normalize, value.split()) if word]
-        for width in range(min(len(output_words), 12), 3, -1):
+        for width in range(min(len(output_words), 12), ECHO_WORDS - 1, -1):
             for start in range(len(output_words) - width + 1):
                 copied_phrase = "".join(output_words[start:start + width])
                 if copied_phrase in source:
@@ -540,7 +606,15 @@ def run_digest(
 
     from faster_whisper import WhisperModel
 
-    model = WhisperModel(whisper_model, device="cpu", compute_type="int8")
+    try:
+        model = WhisperModel(whisper_model, device="cpu", compute_type="int8")
+    except Exception as error:
+        if (
+            whisper_model in WHISPER_SIZES
+            and whisper_model not in downloaded_whisper_models()
+        ):
+            raise WhisperModelMissing(missing_whisper_message(whisper_model)) from error
+        raise
     results: list[DigestEntry] = []
     total = len(files)
     for index, media_file in enumerate(files):
@@ -650,7 +724,8 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("folder", nargs="?",
-                        help="folder of recordings, or a .txt/.md file or folder with --text")
+                        help="a recording or folder of recordings; "
+                             "a .txt/.md file or folder with --text")
     parser.add_argument(
         "--since", type=float, default=24,
         help="only audio files from the last N hours",
@@ -661,7 +736,7 @@ def main() -> None:
     )
     parser.add_argument("--language", choices=("en", "hi", "mr"), default=None,
                         help="input language (default: auto-detect)")
-    parser.add_argument("--model", default="llama3.2:3b")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--style", choices=STYLES, default="line",
                         help="line: one short line; points: key points; both")
@@ -681,6 +756,7 @@ def main() -> None:
         return
     if not args.folder:
         parser.error("folder is required")
+    args.folder = clean_path(args.folder)
     require_local(args.host)
 
     try:
@@ -701,7 +777,7 @@ def main() -> None:
                 host=args.host,
                 style=args.style,
             )
-    except (LocalModelError, ValueError) as error:
+    except (LocalModelError, WhisperModelMissing, ValueError) as error:
         sys.exit(str(error))
 
     if not results:

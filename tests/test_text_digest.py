@@ -1,4 +1,5 @@
 import http.client
+import os
 import io
 import json
 import threading
@@ -347,3 +348,125 @@ def test_models_put_gemma_first_as_recommended():
         "Gemma3:4b", "gemma2:2b", "llama3.2:3b", "qwen2.5", "codegemma",
     ]
     assert [model["recommended"] for model in ordered] == [True, True, False, False, False]
+
+
+def test_echo_guard_keeps_short_shared_hindi_phrasing():
+    # "अगले महीने का बजट" is a natural four-word phrase, not a copied sentence.
+    answer = core.Digest("टीम ने अगले महीने का बजट निर्धारित किया।", [], [])
+
+    assert core._without_transcript_echo(answer, HINDI_TEXT).summary == answer.summary
+
+
+def test_ask_retries_once_when_model_returns_empty_object():
+    replies = [
+        io.BytesIO(json.dumps({"response": "{}"}).encode()),
+        io.BytesIO(json.dumps({"response": '{"summary": "second try"}'}).encode()),
+    ]
+    with patch.object(core, "open_local_url", side_effect=replies) as open_url:
+        answer = core._ask("text", "ONE short line", "http://localhost:11434", "m")
+
+    assert answer.summary == "second try"
+    assert open_url.call_count == 2
+
+
+# --- single media file paths -------------------------------------------------
+
+def test_find_media_accepts_one_file_regardless_of_age(tmp_path):
+    video = tmp_path / "Screen capture 2026-10-17.mp4"
+    video.write_bytes(b"media")
+    old = time.time() - 30 * 24 * 3600
+    os.utime(video, (old, old))
+    (tmp_path / "notes.txt").write_text("not media", encoding="utf-8")
+
+    assert core.find_media(video, 24) == [video.resolve()]
+    assert core.find_media(tmp_path, 24) == []
+    with pytest.raises(ValueError, match="not a supported audio or video"):
+        core.find_media(tmp_path / "notes.txt", 24)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (r'"C:\Users\you\Videos\clip one.mp4"', r"C:\Users\you\Videos\clip one.mp4"),
+        ("  'clip.mp4'  ", "clip.mp4"),
+        ("clip.mp4", "clip.mp4"),
+        ('"', '"'),
+    ],
+)
+def test_clean_path_strips_copy_as_path_quotes(raw, expected):
+    assert core.clean_path(raw) == expected
+
+
+def test_server_accepts_quoted_media_file_and_rejects_other_files(httpd, monkeypatch, tmp_path):
+    video = tmp_path / "Asset Copilot - Chrome.mp4"
+    video.write_bytes(b"media")
+    notes = tmp_path / "notes.txt"
+    notes.write_text("hi", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(server.core, "run_digest", lambda **kw: calls.append(kw) or [])
+
+    status, _ = _post(httpd, {"folder": f'"{video}"'})
+    assert status == 202
+    _wait_until_finished(httpd)
+    assert calls[0]["folder"] == video.resolve()
+
+    status, payload = _post(httpd, {"folder": str(notes)})
+    assert status == 400
+    assert "not a supported audio or video file" in payload["error"]
+
+
+# --- downloaded Whisper models -----------------------------------------------
+
+def _cache_whisper(cache, size):
+    snapshot = cache / f"models--Systran--faster-whisper-{size}" / "snapshots" / "abc123"
+    snapshot.mkdir(parents=True)
+    (snapshot / "model.bin").write_bytes(b"weights")
+
+
+def test_downloaded_whisper_models_reads_the_hugging_face_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path))
+    _cache_whisper(tmp_path, "base")
+    # A started-but-unfinished download has no model.bin yet.
+    (tmp_path / "models--Systran--faster-whisper-small" / "snapshots" / "x").mkdir(parents=True)
+
+    assert core.downloaded_whisper_models() == ["base"]
+
+
+def test_run_digest_explains_a_missing_whisper_model(tmp_path, monkeypatch):
+    import types
+
+    monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path / "cache"))
+    _cache_whisper(tmp_path / "cache", "base")
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"media")
+
+    def offline_model(*args, **kwargs):
+        raise OSError("Cannot find an appropriate cached snapshot folder")
+
+    monkeypatch.setitem(
+        __import__("sys").modules, "faster_whisper",
+        types.SimpleNamespace(WhisperModel=offline_model),
+    )
+    with pytest.raises(core.WhisperModelMissing) as error:
+        core.run_digest(video, 24, None, "small", "m", False, None)
+
+    assert "'small' speech model isn't downloaded" in str(error.value)
+    assert "Settings (base)" in str(error.value)
+
+
+def test_server_lists_whisper_models_with_download_state(httpd, tmp_path, monkeypatch):
+    monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path))
+    _cache_whisper(tmp_path, "base")
+    connection = http.client.HTTPConnection(*httpd.server_address, timeout=5)
+    connection.request("GET", "/api/whisper-models")
+    response = connection.getresponse()
+    payload = json.loads(response.read())
+    connection.close()
+
+    assert response.status == 200
+    assert payload == {"models": [
+        {"name": "tiny", "downloaded": False},
+        {"name": "base", "downloaded": True},
+        {"name": "small", "downloaded": False},
+        {"name": "medium", "downloaded": False},
+    ]}

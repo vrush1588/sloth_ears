@@ -131,7 +131,7 @@ def test_summarize_withholds_verbatim_transcript_echo(fake_ollama):
         core,
         "_ask",
         return_value=core.Digest(
-            transcript, ["The private recording phrase"], []
+            transcript, ["The private recording phrase should not be copied"], []
         ),
     ):
         summary, actions, _ = core.summarize(transcript, host, "fake-model")
@@ -198,7 +198,7 @@ def test_server_is_loopback_validates_folder_and_rejects_parallel_runs(tmp_path,
             httpd, "POST", "/api/run", {"folder": str(tmp_path / "missing")}
         )
         assert status == 400
-        assert b"must exist and be a directory" in body
+        assert b"existing folder or audio/video file" in body
 
         status, _ = _request(httpd, "POST", "/api/run", options)
         assert status == 202

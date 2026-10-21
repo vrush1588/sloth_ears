@@ -2,11 +2,11 @@
 
 const $ = (selector) => document.querySelector(selector);
 const MAX_TEXT_CHARS = 200000;
-const DEFAULT_MODEL = "llama3.2:3b";
+const DEFAULT_MODEL = "gemma3:4b";
 const MODE_COPY = {
   media: {
     heading: "Choose your listening nook",
-    subheading: "Sloth Ears will look for recent audio and video in this folder.",
+    subheading: "Point Sloth Ears at one recording, or a folder to find recent ones.",
     button: "Summarize while I nap",
   },
   text: {
@@ -136,6 +136,28 @@ async function loadModels() {
     hint.textContent = `${models.length} model${models.length === 1 ? "" : "s"} available in local Ollama.`;
   } catch (error) {
     hint.textContent = `Local Ollama models are unavailable: ${error.message}`;
+  }
+}
+
+async function loadWhisperModels() {
+  const select = $("#whisper-model");
+  try {
+    const result = await api("/api/whisper-models");
+    const models = Array.isArray(result.models) ? result.models : [];
+    const downloaded = new Set(models.filter((model) => model.downloaded).map((model) => model.name));
+    for (const option of select.options) {
+      option.dataset.label ??= option.textContent;
+      const known = models.some((model) => model.name === option.value);
+      option.textContent = known && !downloaded.has(option.value)
+        ? `${option.dataset.label} · not downloaded`
+        : option.dataset.label;
+    }
+    if (downloaded.size && !downloaded.has(select.value)) {
+      // Prefer the recommended size, then the next most accurate one.
+      select.value = ["small", "base", "medium", "tiny"].find((name) => downloaded.has(name));
+    }
+  } catch {
+    // Keep the static list; a run will report a missing model clearly.
   }
 }
 
@@ -533,7 +555,8 @@ function buildRunPayload() {
     const name = file && file.text === text ? file.name : "Pasted text";
     return { ...shared, text, name };
   }
-  const folder = $("#folder-path").value.trim();
+  // Windows "Copy as path" wraps the path in quotes.
+  const folder = $("#folder-path").value.trim().replace(/^(["'])(.*)\1$/, "$2").trim();
   if (!folder) {
     $("#folder-path").focus();
     return null;
@@ -590,7 +613,7 @@ document.addEventListener("keydown", (event) => {
 
 async function initialize() {
   updateOfflineBadge();
-  await Promise.all([loadModels(), refreshDigest()]);
+  await Promise.all([loadModels(), loadWhisperModels(), refreshDigest()]);
   try {
     setStatus(await api("/api/status"));
   } catch (error) {

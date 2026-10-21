@@ -49,7 +49,7 @@
     </select>
     <label class="field-label" for="ai-model">Local AI model</label>
     <select class="control" id="ai-model">
-      <option value="llama3.2:3b" selected>llama3.2:3b</option>
+      <option value="gemma3:4b" selected>gemma3:4b</option>
     </select>
     <p class="field-hint" id="models-hint">Model names are read from local Ollama.</p>
     <div class="toggle-row">
@@ -118,14 +118,14 @@
         </div>
         <div class="section-heading">
           <span class="step-number">01</span>
-          <div><h2 id="run-heading">Choose your listening nook</h2><p id="run-subheading">Sloth Ears will look for recent audio and video in this folder.</p></div>
+          <div><h2 id="run-heading">Choose your listening nook</h2><p id="run-subheading">Point Sloth Ears at one recording, or a folder to find recent ones.</p></div>
         </div>
         <form id="run-form" novalidate>
           <div id="media-panel" role="tabpanel" aria-labelledby="tab-media">
-            <label class="field-label" for="folder-path">Folder path</label>
+            <label class="field-label" for="folder-path">Folder or file path</label>
             <div class="input-with-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-11Z"/><path d="M3.5 9h17"/></svg>
-              <input id="folder-path" name="folder" type="text" placeholder="e.g. C:\Users\you\Recordings" autocomplete="off">
+              <input id="folder-path" name="folder" type="text" placeholder="e.g. C:\Users\you\Recordings or C:\Users\you\Videos\meeting.mp4" autocomplete="off">
             </div>
           </div>
           <div id="text-panel" role="tabpanel" aria-labelledby="tab-text" hidden>

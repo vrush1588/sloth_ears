@@ -66,7 +66,7 @@ class ServerTests(unittest.TestCase):
     def test_run_validates_folder_and_allows_only_one_active_worker(self):
         status, body = self.request("POST", "/api/run", {"folder": str(self.root / "missing")})
         self.assertEqual(status, 400)
-        self.assertIn(b"directory", body)
+        self.assertIn(b"existing folder or audio/video file", body)
 
         entered = threading.Event()
         release = threading.Event()
