@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff8f6">
+  <title>Sloth Ears — Local audio digests</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Sloth Ears home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none"><path d="M16 3.5c6.9 0 12.5 5.6 12.5 12.5S22.9 28.5 16 28.5 3.5 22.9 3.5 16 9.1 3.5 16 3.5Z" fill="currentColor" opacity=".12"/><path d="M10.2 13.2c.2-4 2.4-6.8 5.8-6.8s5.6 2.8 5.8 6.8M11 14.2c1.4-1.3 2.8-1.9 5-1.9s3.6.6 5 1.9M11.3 17.8c.8 1.2 2.4 2 4.7 2s3.9-.8 4.7-2M13.1 15.8h.1m5.6 0h.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M13.5 22c.5 1.4 1.3 2.1 2.5 2.1s2-.7 2.5-2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </span>
+      <span class="brand-copy"><strong>Sloth Ears</strong><small>Local audio digests</small></span>
+    </a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <button class="nav-button is-active" id="nav-drop" type="button" aria-current="page">Drop Zone</button>
+      <button class="nav-button" id="nav-digest" type="button">Digest</button>
+    </nav>
+    <div class="header-actions">
+      <span class="privacy-badge" id="offline-badge" hidden>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.2 16.2 4v4.8c0 4.2-2.5 7.1-6.2 9-3.7-1.9-6.2-4.8-6.2-9V4L10 2.2Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m7.2 9.8 1.8 1.8 3.8-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Offline mode
+      </span>
+      <button class="icon-button" id="settings-button" type="button" aria-label="Open settings" aria-expanded="false" aria-controls="settings-popover">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z"/><path d="m19.1 13.8 1.2.9-1.6 2.8-1.4-.6a7.7 7.7 0 0 1-1.8 1l-.2 1.5h-3.2l-.2-1.5a7.7 7.7 0 0 1-1.8-1l-1.4.6-1.6-2.8 1.2-.9a7.2 7.2 0 0 1 0-2l-1.2-.9 1.6-2.8 1.4.6a7.7 7.7 0 0 1 1.8-1l.2-1.5h3.2l.2 1.5a7.7 7.7 0 0 1 1.8 1l1.4-.6 1.6 2.8-1.2.9a7.2 7.2 0 0 1 0 2Z" transform="translate(-1.5 -1.5) scale(1.12)"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="popover-backdrop" id="popover-backdrop" hidden></div>
+  <aside class="settings-popover" id="settings-popover" aria-label="Settings" hidden>
+    <div class="popover-heading">
+      <div><span class="eyebrow">YOUR PREFERENCES</span><h2>Settings</h2></div>
+      <button class="icon-button small" id="settings-close" type="button" aria-label="Close settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <label class="field-label" for="whisper-model">Whisper speech model</label>
+    <select class="control" id="whisper-model">
+      <option value="tiny">Tiny · fastest</option>
+      <option value="base">Base · balanced</option>
+      <option value="small" selected>Small · recommended</option>
+      <option value="medium">Medium · more accurate</option>
+    </select>
+    <label class="field-label" for="ai-model">Local AI model</label>
+    <select class="control" id="ai-model">
+      <option value="llama3.2:3b" selected>llama3.2:3b</option>
+    </select>
+    <p class="field-hint" id="models-hint">Model names are read from local Ollama.</p>
+    <div class="toggle-row">
+    <div><strong>Offline mode</strong><span>Downloads stay blocked either way</span></div>
+      <label class="switch" aria-label="Offline mode">
+        <input id="offline-toggle" type="checkbox" checked>
+        <span class="switch-track"></span>
+      </label>
+    </div>
+    <p class="privacy-note">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.2 16.2 4v4.8c0 4.2-2.5 7.1-6.2 9-3.7-1.9-6.2-4.8-6.2-9V4L10 2.2Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m7.2 9.8 1.8 1.8 3.8-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Calm and private. Your recordings stay on this device.
+    </p>
+  </aside>
+
+  <main class="page-shell">
+    <div class="view-switch">
+      <span class="switch-caption">YOUR QUIET WORKSPACE</span>
+      <span class="storage-chip"><span class="storage-dot"></span><span>Digest folder</span><code id="storage-path">Loading…</code></span>
+    </div>
+
+    <section class="view" id="drop-view" aria-labelledby="drop-title">
+      <div class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow"><span class="eyebrow-dot"></span> A LITTLE LESS LISTENING, A LITTLE MORE REST</span>
+          <h1 id="drop-title">Let your recordings<br><em>come to you.</em></h1>
+          <p class="hero-description">Settle in, choose a folder, and let Sloth Ears listen while you take a breather.</p>
+          <div class="hero-assurance">
+            <span class="assurance-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3 19 6v5.2c0 4.7-2.8 8-7 9.8-4.2-1.8-7-5.1-7-9.8V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            </span>
+            <span><strong>Calm and private</strong><small>Everything stays on your device.</small></span>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <span class="sun-orbit"></span>
+          <svg class="hero-sloth" viewBox="0 0 310 260" fill="none">
+            <path d="M25 211c67-12 140-7 258 2" stroke="#788d6f" stroke-width="11" stroke-linecap="round"/>
+            <path d="M68 208c-6-18-3-35 9-49m157 51c4-17 2-34-9-49" stroke="#788d6f" stroke-width="6" stroke-linecap="round"/>
+            <path d="M74 95c3-35 33-58 70-56 39 2 67 29 67 66 0 18-8 33-20 45l-1 25c0 18-16 31-35 31h-42c-22 0-39-16-39-37v-19c-9-14-13-34 0-55Z" fill="#b6a184"/>
+            <path d="M91 86c7-18 23-28 43-28 19 0 35 10 43 28-7 20-22 29-43 29-20 0-36-10-43-29Z" fill="#e9d5b9"/>
+            <path d="M111 83c8-10 18-14 28-14 11 0 21 4 29 14-5 14-15 21-29 21s-24-7-28-21Z" fill="#f6eee1"/>
+            <path d="M125 84c3-2 6-3 9-3m13 3c3-2 6-3 9-3" stroke="#604c3e" stroke-width="4" stroke-linecap="round"/>
+            <path d="M140 91c2 2 5 2 7 0" stroke="#604c3e" stroke-width="3" stroke-linecap="round"/>
+            <path d="M97 133c16 12 48 17 76 3" stroke="#8b765d" stroke-width="8" stroke-linecap="round"/>
+            <path d="M98 185c-3 10-11 15-21 14-9-1-13-7-12-14m151 1c4 10 12 14 21 12 9-2 12-8 10-16" stroke="#74624e" stroke-width="7" stroke-linecap="round"/>
+            <path d="M221 71c18 2 32 14 37 30m-15-42c17 6 28 19 32 35" stroke="#91a27d" stroke-width="5" stroke-linecap="round"/>
+            <path d="M236 91c13-5 23-4 32 1-4 12-13 18-27 17m-19-50c8-12 18-18 31-19 2 13-4 23-17 30" fill="#a6b492"/>
+            <path d="M35 68c11-14 24-20 39-18 0 15-7 25-22 31m195 110c10-12 22-17 36-15-1 14-8 24-22 29" fill="#a6b492"/>
+            <circle cx="105" cy="95" r="3" fill="#604c3e"/><circle cx="180" cy="95" r="3" fill="#604c3e"/>
+          </svg>
+          <span class="art-caption">One slow breath at a time.</span>
+        </div>
+      </div>
+
+      <div class="work-card" id="run-form-card">
+        <div class="mode-tabs" role="tablist" aria-label="What to summarize">
+          <button class="mode-tab is-active" id="tab-media" type="button" role="tab" aria-selected="true" aria-controls="media-panel" data-mode="media">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3Z"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3"/></svg>
+            Audio / Video
+          </button>
+          <button class="mode-tab" id="tab-text" type="button" role="tab" aria-selected="false" aria-controls="text-panel" data-mode="text" tabindex="-1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 20V5a1.5 1.5 0 0 1 2-1.5Z"/><path d="M8 12h8m-8 4h6"/></svg>
+            Text
+          </button>
+        </div>
+        <div class="section-heading">
+          <span class="step-number">01</span>
+          <div><h2 id="run-heading">Choose your listening nook</h2><p id="run-subheading">Sloth Ears will look for recent audio and video in this folder.</p></div>
+        </div>
+        <form id="run-form" novalidate>
+          <div id="media-panel" role="tabpanel" aria-labelledby="tab-media">
+            <label class="field-label" for="folder-path">Folder path</label>
+            <div class="input-with-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-11Z"/><path d="M3.5 9h17"/></svg>
+              <input id="folder-path" name="folder" type="text" placeholder="e.g. C:\Users\you\Recordings" autocomplete="off">
+            </div>
+          </div>
+          <div id="text-panel" role="tabpanel" aria-labelledby="tab-text" hidden>
+            <div class="text-label-row">
+              <label class="field-label" for="text-input">Text to summarize</label>
+              <span class="char-count" id="char-count" aria-live="polite">0 / 200,000 characters</span>
+            </div>
+            <textarea class="control text-area" id="text-input" rows="11" spellcheck="false" placeholder="Paste notes, an article, meeting minutes or a chat export…"></textarea>
+            <div class="text-tools">
+              <button class="secondary-button file-button" id="text-file-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-11Z"/></svg>
+                Open a .txt or .md file
+              </button>
+              <input class="visually-hidden" id="text-file" type="file" accept=".txt,.md,text/plain,text/markdown" tabindex="-1" aria-hidden="true">
+              <span class="text-file-name" id="text-file-name"></span>
+            </div>
+          </div>
+          <div class="form-options">
+            <div id="time-range-field">
+              <label class="field-label" for="time-range">Look back</label>
+              <select class="control" id="time-range">
+                <option value="24">Last 24 hours</option>
+                <option value="168">Last 7 days</option>
+                <option value="all">All recordings</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="language">Language</label>
+              <select class="control" id="language">
+                <option value="">Auto-detect</option>
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+                <option value="mr">Marathi</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="output-style">Output</label>
+              <select class="control" id="output-style">
+                <option value="line">One line</option>
+                <option value="points">Key points</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+          </div>
+          <button class="primary-button" id="run-button" type="submit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5-10-6.5Z"/></svg>
+            <span id="run-button-label">Summarize while I nap</span>
+            <span class="button-sparkle" aria-hidden="true">✳</span>
+          </button>
+          <p class="form-footnote"><span class="tiny-leaf"></span> No uploads. No rush. Just a thoughtful little digest.</p>
+        </form>
+      </div>
+
+      <section class="progress-card" id="progress-card" aria-live="polite" hidden>
+        <div class="progress-topline"><span class="eyebrow"><span class="eyebrow-dot"></span> NAP &amp; DIGEST MODE</span><span class="nap-status" id="nap-status">Listening softly</span></div>
+        <h2>Taking it slow.</h2>
+        <p class="progress-subtitle">Your recordings are in good paws.</p>
+        <div class="progress-scene">
+          <div class="progress-sky"><span class="scene-cloud cloud-one"></span><span class="scene-cloud cloud-two"></span><span class="scene-sparkle sparkle-one">✳</span><span class="scene-sparkle sparkle-two">✳</span></div>
+          <div class="progress-line"><span class="progress-fill" id="progress-fill"></span><span class="sloth-marker" id="sloth-marker">
+            <svg viewBox="0 0 72 70" aria-hidden="true"><path d="M7 57c16-4 34-3 58 1" stroke="#788d6f" stroke-width="5" stroke-linecap="round"/><path d="M18 48c-2-12 5-23 18-24 12 0 21 9 20 21l-2 8H21l-3-5Z" fill="#b6a184"/><path d="M22 33c3-8 9-12 16-12s13 4 16 12c-3 8-9 12-16 12s-13-4-16-12Z" fill="#eee0cc"/><path d="M29 33c2-2 4-3 7-3s5 1 7 3c-2 4-4 6-7 6s-5-2-7-6Z" fill="#faf5eb"/><path d="M33 34h.1m6-.1h.1" stroke="#604c3e" stroke-width="2.5" stroke-linecap="round"/><path d="M34 40c2 1 4 1 6 0" stroke="#604c3e" stroke-width="1.5" stroke-linecap="round"/><path d="M23 49c-2 5-5 7-9 6m40-5c2 4 5 6 9 5" stroke="#74624e" stroke-width="3" stroke-linecap="round"/></svg>
+          </span></div>
+          <div class="progress-labels"><span>Settling in</span><span id="progress-percent">0%</span><span>Nearly there</span></div>
+        </div>
+        <div class="progress-details">
+          <div class="file-count"><strong id="file-count">0 of 0 files</strong><span id="current-stage">Getting things ready</span></div>
+          <div class="current-file"><span class="file-pulse"></span><span id="current-file">Waiting for the first recording…</span></div>
+        </div>
+        <p class="gentle-note"><span aria-hidden="true">☾</span> Take your time. This can take a little while.</p>
+      </section>
+      <div class="notice" id="notice" role="status" hidden></div>
+      <div class="bottom-note"><span class="tiny-leaf"></span><span><strong>Calm and private</strong><br>Audio and text are processed locally; transcripts and pasted text are never saved.</span></div>
+    </section>
+
+    <section class="view digest-view" id="digest-view" aria-labelledby="digest-title" hidden>
+      <div class="digest-heading">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span> YOUR QUIET LITTLE RECAP</span>
+          <h1 id="digest-title">Your audio digest</h1>
+          <p class="digest-intro">A few useful thoughts, gathered while you rested.</p>
+          <p class="digest-meta" id="digest-meta"></p>
+        </div>
+        <div class="digest-actions">
+          <button class="secondary-button" id="copy-button" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg>Copy all
+          </button>
+          <button class="secondary-button" id="export-button" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5"/><path d="M5 16v4h14v-4"/></svg>Export as .md
+          </button>
+          <button class="wipe-button" id="wipe-button" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-10 4v7m4-7v7M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>Wipe digest
+          </button>
+        </div>
+      </div>
+      <div class="action-tracker" id="action-tracker">
+        <span class="tracker-check" aria-hidden="true">✓</span><strong id="action-count">0 of 0 action items completed</strong>
+        <span class="tracker-bar"><span id="tracker-fill"></span></span>
+      </div>
+      <div class="digest-list" id="digest-list"></div>
+      <div class="empty-state" id="empty-state" hidden>
+        <span class="empty-moon" aria-hidden="true">☾</span>
+        <h2>No digest yet. Take a nap.</h2>
+        <p>When you’re ready, choose a folder and let Sloth Ears do the listening.</p>
+        <button class="primary-button" id="empty-start-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5-10-6.5Z"/></svg>
+          Choose a folder
+        </button>
+      </div>
+    </section>
+  </main>
+  <footer class="footer"><span class="footer-sloth" aria-hidden="true">◒</span><span>Sloth Ears <span class="footer-separator">·</span> Calm and private, right here on your device.</span></footer>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
