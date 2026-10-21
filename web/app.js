@@ -6,7 +6,7 @@ const DEFAULT_MODEL = "gemma3:4b";
 const MODE_COPY = {
   media: {
     heading: "Choose your listening nook",
-    subheading: "Point Sloth Ears at one recording, or a folder to find recent ones.",
+    subheading: "Point Sloth Gist at one recording, or a folder to find recent ones.",
     button: "Summarize while I nap",
   },
   text: {
@@ -28,7 +28,10 @@ const state = {
 
 function readCompletedActions() {
   try {
-    const saved = JSON.parse(localStorage.getItem("sloth-ears-completed") || "{}");
+    // Fall back to the key used before the rename from Sloth Ears.
+    const raw = localStorage.getItem("sloth-gist-completed")
+      ?? localStorage.getItem("sloth-ears-completed");
+    const saved = JSON.parse(raw || "{}");
     return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
   } catch {
     return {};
@@ -37,7 +40,7 @@ function readCompletedActions() {
 
 function saveCompletedActions() {
   try {
-    localStorage.setItem("sloth-ears-completed", JSON.stringify(state.completed));
+    localStorage.setItem("sloth-gist-completed", JSON.stringify(state.completed));
   } catch {
     showToast("Action checkmarks will last for this visit only.");
   }
@@ -334,6 +337,26 @@ function createIcon(markup, className = "") {
   return span;
 }
 
+function actionKey(entry, cardIndex, actionIndex, action) {
+  if (entry.id) return `${entry.id}|${actionIndex}`;
+  return `${entry.file || ""}|${cardIndex}|${actionIndex}|${action}`;
+}
+
+function entryWhen(entry) {
+  const time = entry.time || "Time unavailable";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(entry.date || "");
+  if (!match) return time;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  const sameDay = (a, b) => a.toDateString() === b.toDateString();
+  if (sameDay(date, today)) return `Today · ${time}`;
+  if (sameDay(date, yesterday)) return `Yesterday · ${time}`;
+  const options = { day: "numeric", month: "short" };
+  if (date.getFullYear() !== today.getFullYear()) options.year = "numeric";
+  return `${date.toLocaleDateString(undefined, options)} · ${time}`;
+}
+
 function entryLength(entry) {
   if (entry.kind !== "text") return formatDuration(entry.duration_seconds);
   const words = Math.max(0, Number(entry.words) || 0);
@@ -363,7 +386,7 @@ function makeDigestCard(entry, cardIndex) {
   title.title = fileName(entry.file);
   const metadata = document.createElement("p");
   metadata.className = "file-meta";
-  metadata.textContent = `${entry.time || "Time unavailable"} · ${entryLength(entry)}`;
+  metadata.textContent = `${entryWhen(entry)} · ${entryLength(entry)}`;
   nameBlock.append(title, metadata);
   fileInfo.append(nameBlock);
   heading.append(fileInfo);
@@ -398,7 +421,7 @@ function makeDigestCard(entry, cardIndex) {
       const item = document.createElement("li");
       item.className = "todo-item";
       const checkbox = document.createElement("input");
-      const key = `${entry.file || ""}|${cardIndex}|${actionIndex}|${action}`;
+      const key = actionKey(entry, cardIndex, actionIndex, action);
       checkbox.type = "checkbox";
       checkbox.id = `todo-${escapeKey(key)}`;
       checkbox.checked = Boolean(state.completed[key]);
@@ -458,7 +481,8 @@ function renderDigest() {
     updateActionCount();
     return;
   }
-  for (const [index, entry] of state.digest.entries()) {
+  // Newest first; cards keep their saved index so older checkmarks still match.
+  for (const [index, entry] of [...state.digest.entries()].reverse()) {
     if (entry && typeof entry === "object") list.append(makeDigestCard(entry, index));
   }
   const texts = state.digest.filter((entry) => entry?.kind === "text").length;
@@ -471,14 +495,14 @@ function renderDigest() {
 }
 
 function createMarkdown() {
-  const lines = ["# Your audio digest", ""];
+  const lines = ["# Your Sloth Gist digest", ""];
   for (const entry of state.digest) {
-    lines.push(`## ${fileName(entry.file)} (${entry.time || "Time unavailable"} · ${entryLength(entry)})`);
+    lines.push(`## ${fileName(entry.file)} (${entryWhen(entry)} · ${entryLength(entry)})`);
     const points = Array.isArray(entry.points) ? entry.points : [];
     if (entry.summary || !points.length) lines.push("", entry.summary || emptySummary(entry));
     if (points.length) lines.push("", ...points.map((point) => `- ${point}`), "");
     for (const [actionIndex, action] of (entry.actions || []).entries()) {
-      const key = `${entry.file || ""}|${state.digest.indexOf(entry)}|${actionIndex}|${action}`;
+      const key = actionKey(entry, state.digest.indexOf(entry), actionIndex, action);
       lines.push(`- [${state.completed[key] ? "x" : " "}] ${action}`);
     }
     lines.push("");
@@ -511,7 +535,7 @@ function exportDigest() {
   const file = new Blob([createMarkdown()], { type: "text/markdown;charset=utf-8" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(file);
-  link.download = "sloth-ears-digest.md";
+  link.download = "sloth-gist-digest.md";
   document.body.append(link);
   link.click();
   link.remove();

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from sloth_ears import core
+from sloth_gist import core
 
 
 class CoreTests(unittest.TestCase):
@@ -91,6 +91,8 @@ class CoreTests(unittest.TestCase):
                 results,
                 [{
                     "file": str(media),
+                    "id": results[0]["id"],
+                    "date": results[0]["date"],
                     "time": results[0]["time"],
                     "duration_seconds": 42.0,
                     "summary": "A short summary.",
@@ -125,7 +127,7 @@ class CoreTests(unittest.TestCase):
             with (
                 patch.object(core, "DIGEST", digest),
                 patch.object(core, "DIGEST_JSON", digest_json),
-                patch("sys.argv", ["sloth_ears", "--wipe"]),
+                patch("sys.argv", ["sloth_gist", "--wipe"]),
             ):
                 core.main()
 

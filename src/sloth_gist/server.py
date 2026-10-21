@@ -1,4 +1,4 @@
-"""Loopback-only web server for the Sloth Ears frontend and API."""
+"""Loopback-only web server for the Sloth Gist frontend and API."""
 
 import argparse
 import json
@@ -67,7 +67,7 @@ class ServerState:
             self.value.update(values)
 
 
-class SlothEarsHTTPServer(ThreadingHTTPServer):
+class SlothGistHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
@@ -88,7 +88,7 @@ def _make_handler(web_root: Path):
     static_root = web_root.resolve()
 
     class RequestHandler(BaseHTTPRequestHandler):
-        server: SlothEarsHTTPServer
+        server: SlothGistHTTPServer
 
         def _send_json(self, status: HTTPStatus, value: Any) -> None:
             payload = json.dumps(value, ensure_ascii=False).encode("utf-8")
@@ -159,7 +159,7 @@ def _make_handler(web_root: Path):
             worker = threading.Thread(
                 target=self._run_digest,
                 args=(options,),
-                name="sloth-ears-digest",
+                name="sloth-gist-digest",
                 daemon=True,
             )
             try:
@@ -386,10 +386,10 @@ def _make_handler(web_root: Path):
     return RequestHandler
 
 
-def create_server(host: str = HOST, port: int = DEFAULT_PORT) -> SlothEarsHTTPServer:
+def create_server(host: str = HOST, port: int = DEFAULT_PORT) -> SlothGistHTTPServer:
     if host != HOST:
-        raise ValueError(f"Sloth Ears server must bind to {HOST}, not {host}.")
-    return SlothEarsHTTPServer(
+        raise ValueError(f"Sloth Gist server must bind to {HOST}, not {host}.")
+    return SlothGistHTTPServer(
         (HOST, port),
         _make_handler(WEB_ROOT),
         ServerState(),
@@ -403,9 +403,11 @@ def main() -> None:
     args = parser.parse_args()
     try:
         server = create_server(args.host, args.port)
+        if core.migrate_legacy_digests():
+            print(f"Moved your earlier digests to {core.DIGEST_DIR}", flush=True)
     except (OSError, ValueError) as error:
         parser.error(str(error))
-    print(f"Sloth Ears is available at http://{HOST}:{server.server_port}", flush=True)
+    print(f"Sloth Gist is available at http://{HOST}:{server.server_port}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

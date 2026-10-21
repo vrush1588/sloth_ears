@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sloth_ears import core, server
+from sloth_gist import core, server
 
 
 @pytest.fixture

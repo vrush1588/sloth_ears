@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 class CommandLineTests(unittest.TestCase):
     def test_module_help_runs_from_project_root(self):
         result = subprocess.run(
-            [sys.executable, "-m", "sloth_ears", "--help"],
+            [sys.executable, "-m", "sloth_gist", "--help"],
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,

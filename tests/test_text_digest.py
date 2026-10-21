@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sloth_ears import core, server
+from sloth_gist import core, server
 
 HINDI_TEXT = (
     "आज टीम की बैठक हुई और हमने अगले महीने का बजट तय किया है। "
@@ -470,3 +470,62 @@ def test_server_lists_whisper_models_with_download_state(httpd, tmp_path, monkey
         {"name": "small", "downloaded": False},
         {"name": "medium", "downloaded": False},
     ]}
+
+
+# --- digest history ----------------------------------------------------------
+
+def test_new_runs_add_to_the_saved_digest_instead_of_replacing_it(
+    multilingual_model, digest_dir, tmp_path
+):
+    host, _ = multilingual_model
+    note = tmp_path / "note.txt"
+    note.write_text("Budget meeting notes.", encoding="utf-8")
+
+    first = core.run_text_digest("First pasted note.", "line", None, "m", None, host=host)
+    core.run_text_digest("Second pasted note.", "line", None, "m", None, host=host)
+    core.run_text_digest(note, "line", None, "m", None, host=host)
+    again = core.run_text_digest(note, "points", None, "m", None, host=host)
+
+    saved = core.load_digest()
+    # Both pastes are kept; the re-digested file replaces its earlier entry.
+    assert [entry["file"] for entry in saved] == [
+        "Pasted text", "Pasted text", str(note.resolve()),
+    ]
+    assert saved[0]["id"] == first[0]["id"]
+    assert saved[-1]["id"] == again[0]["id"]
+    assert len({entry["id"] for entry in saved}) == 3
+    markdown = (digest_dir / "digest.md").read_text(encoding="utf-8")
+    assert markdown.count("`Pasted text`") == 2
+    assert f"**{saved[0]['date']} {saved[0]['time']}**" in markdown
+
+
+def test_digest_history_is_capped_and_survives_a_corrupt_file(digest_dir, monkeypatch):
+    monkeypatch.setattr(core, "MAX_DIGEST_ENTRIES", 3)
+    digest_dir.mkdir()
+    (digest_dir / "digest.json").write_text("{not json", encoding="utf-8")
+    assert core.load_digest() == []
+
+    def entry(number):
+        return {"id": str(number), "file": f"note {number}", "date": "2026-10-21",
+                "time": "10:00", "duration_seconds": 0.0, "summary": f"s{number}",
+                "actions": [], "points": [], "kind": "text"}
+
+    for number in range(5):
+        core._save_digest([entry(number)])
+
+    assert [saved["id"] for saved in core.load_digest()] == ["2", "3", "4"]
+
+
+def test_digests_move_from_the_old_sloth_ears_folder(digest_dir, tmp_path, monkeypatch):
+    legacy = tmp_path / "SlothEars" / "Digests"
+    legacy.mkdir(parents=True)
+    (legacy / "digest.json").write_text('[{"summary": "पुराना सार"}]', encoding="utf-8")
+    (legacy / "digest.md").write_text("# old digest\n", encoding="utf-8")
+    monkeypatch.setattr(core, "LEGACY_DIGEST_DIR", legacy)
+
+    assert core.migrate_legacy_digests() is True
+    assert core.load_digest() == [{"summary": "पुराना सार"}]
+    assert (digest_dir / "digest.md").read_text(encoding="utf-8") == "# old digest\n"
+    assert not any(legacy.iterdir())
+    # Once moved (or if new digests exist), it does nothing.
+    assert core.migrate_legacy_digests() is False

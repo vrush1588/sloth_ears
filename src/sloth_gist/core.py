@@ -14,6 +14,7 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Callable, NamedTuple, NotRequired, TypedDict
@@ -26,12 +27,15 @@ TEXT_EXT = {".txt", ".md"}
 CHUNK = 5000
 MAX_TEXT_CHARS = 200_000
 MAX_POINTS = 8
+MAX_DIGEST_ENTRIES = 200
 ECHO_WORDS = 6
 STYLES = ("line", "points", "both")
 DEFAULT_HOST = "http://localhost:11434"
 DEFAULT_MODEL = "gemma3:4b"
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
-DIGEST_DIR = Path.home() / "Documents" / "SlothEars" / "Digests"
+DIGEST_DIR = Path.home() / "Documents" / "SlothGist" / "Digests"
+# Where digests were saved before the project was renamed from Sloth Ears.
+LEGACY_DIGEST_DIR = Path.home() / "Documents" / "SlothEars" / "Digests"
 DIGEST = DIGEST_DIR / "digest.md"
 DIGEST_JSON = DIGEST_DIR / "digest.json"
 LANGUAGE_NAMES = {"en": "English", "hi": "Hindi (हिन्दी)", "mr": "Marathi (मराठी)"}
@@ -47,7 +51,9 @@ _MARATHI_WORDS = {
 
 
 class DigestEntry(TypedDict):
+    id: str
     file: str
+    date: str
     time: str
     duration_seconds: float
     summary: str
@@ -188,7 +194,7 @@ def require_local(host: str) -> None:
     if urllib.parse.urlparse(host).hostname not in LOCAL_HOSTS:
         sys.exit(
             f"Refusing to run: {host} is not this machine. "
-            "sloth-ears never sends audio or text off-device."
+            "sloth-gist never sends audio or text off-device."
         )
 
 
@@ -548,9 +554,10 @@ def summarize(
 
 
 def format_digest(results: list[DigestEntry]) -> str:
-    lines = [f"# Sloth Ears digest ({dt.datetime.now():%d %b %Y, %H:%M})", ""]
+    lines = [f"# Sloth Gist digest ({dt.datetime.now():%d %b %Y, %H:%M})", ""]
     for result in results:
-        label = f"- **{result['time']}** `{Path(result['file']).name}`:"
+        when = f"{result.get('date', '')} {result['time']}".strip()
+        label = f"- **{when}** `{Path(result['file']).name}`:"
         points = result.get("points", [])
         if result["summary"] or points:
             lines.append(f"{label} {result['summary']}".rstrip())
@@ -563,11 +570,32 @@ def format_digest(results: list[DigestEntry]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def load_digest() -> list[DigestEntry]:
+    """Entries saved by earlier runs; an unreadable file counts as empty."""
+    try:
+        saved = json.loads(DIGEST_JSON.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    if not isinstance(saved, list):
+        return []
+    return [entry for entry in saved if isinstance(entry, dict)]
+
+
 def _save_digest(results: list[DigestEntry]) -> None:
-    _write_private_file(DIGEST, format_digest(results))
+    """Add new results to the saved history, oldest first.
+
+    A recording or file that is digested again replaces its earlier entry;
+    pasted text has no path, so every paste is kept.
+    """
+    replaced = {
+        result["file"] for result in results if Path(result["file"]).is_absolute()
+    }
+    kept = [entry for entry in load_digest() if entry.get("file") not in replaced]
+    history = (kept + results)[-MAX_DIGEST_ENTRIES:]
+    _write_private_file(DIGEST, format_digest(history))
     _write_private_file(
         DIGEST_JSON,
-        json.dumps(results, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(history, ensure_ascii=False, indent=2) + "\n",
     )
 
 
@@ -634,6 +662,8 @@ def run_digest(
         timestamp = dt.datetime.fromtimestamp(media_file.stat().st_mtime)
         results.append({
             "file": str(media_file),
+            "id": uuid.uuid4().hex,
+            "date": timestamp.strftime("%Y-%m-%d"),
             "time": timestamp.strftime("%H:%M"),
             "duration_seconds": duration,
             "summary": answer.summary,
@@ -697,6 +727,8 @@ def run_text_digest(
         )
         results.append({
             "file": label if path is None else str(path),
+            "id": uuid.uuid4().hex,
+            "date": timestamp.strftime("%Y-%m-%d"),
             "time": timestamp.strftime("%H:%M"),
             "duration_seconds": 0.0,
             "summary": answer.summary,
@@ -711,6 +743,18 @@ def run_text_digest(
 
     _save_digest(results)
     return results
+
+
+def migrate_legacy_digests() -> bool:
+    """Move digests from the pre-rename folder, unless new ones already exist."""
+    old_json = LEGACY_DIGEST_DIR / DIGEST_JSON.name
+    if DIGEST_JSON.exists() or not old_json.is_file():
+        return False
+    for old, new in ((old_json, DIGEST_JSON), (LEGACY_DIGEST_DIR / DIGEST.name, DIGEST)):
+        if old.is_file():
+            _write_private_file(new, old.read_text(encoding="utf-8"))
+            old.unlink()
+    return True
 
 
 def wipe_digests() -> None:
@@ -750,6 +794,7 @@ def main() -> None:
                         help="delete saved digests and exit")
     args = parser.parse_args()
 
+    migrate_legacy_digests()
     if args.wipe:
         wipe_digests()
         print("Digest deleted.")

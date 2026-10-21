@@ -1,12 +1,12 @@
 # Verify offline operation
 
-Sloth Ears does not download Whisper models while running. Ollama summaries and
+Sloth Gist does not download Whisper models while running. Ollama summaries and
 model-list requests use the local Ollama service at `127.0.0.1:11434`.
 
 ## 1. Download the models once
 
 While internet access is available, download the Ollama model configured in
-Sloth Ears:
+Sloth Gist:
 
 ```console
 ollama pull gemma3:4b
@@ -28,7 +28,7 @@ With the Ollama service running and Wi-Fi disabled, run the CLI against a folder
 containing recordings:
 
 ```console
-python -m sloth_ears "C:\Users\you\Recordings" --since 24 --whisper small --model gemma3:4b --offline
+python -m sloth_gist "C:\Users\you\Recordings" --since 24 --whisper small --model gemma3:4b --offline
 ```
 
 The `--offline` flag is retained for compatibility; downloads are disabled for
@@ -51,5 +51,5 @@ netstat -ano
 ```
 
 During summarization, a local connection to `127.0.0.1:11434` is expected. The
-web UI also uses the local Sloth Ears server at `127.0.0.1:8765`. No connection
+web UI also uses the local Sloth Gist server at `127.0.0.1:8765`. No connection
 to an external address is needed to run a digest after both models are cached.

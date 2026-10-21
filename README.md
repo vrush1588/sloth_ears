@@ -1,10 +1,13 @@
-# Sloth Ears 🦥
+# Sloth Gist 🦥
 
-**Local audio and video digests, at a gentler pace.** Sloth Ears transcribes
-speech with faster-whisper, then turns it into a short summary and action items
-with a local Ollama model. Video frames are not analyzed.
+**Drop in audio, video or text and get the gist, all on your own laptop.**
 
-> **Screenshot:** _Add a screenshot of the Sloth Ears app here._
+Sloth Gist transcribes speech with faster-whisper, or reads pasted text and
+`.txt`/`.md` files, then turns it into a short summary, key points and to-dos
+with a local Ollama model. Nothing leaves your computer. Video frames are not
+analyzed.
+
+> **Screenshot:** _Add a screenshot of the Sloth Gist app here._
 
 ## Why open models?
 
@@ -32,7 +35,7 @@ with a local Ollama model. Video frames are not analyzed.
 3. Start the web app:
 
    ```console
-   python -m sloth_ears.server
+   python -m sloth_gist.server
    ```
 
    Open <http://127.0.0.1:8765>. On first use, the selected faster-whisper model
@@ -48,7 +51,7 @@ with a local Ollama model. Video frames are not analyzed.
 Run the CLI on a folder of recordings, or on a single audio or video file:
 
 ```console
-python -m sloth_ears "C:\Users\you\Recordings" --since 24 --whisper small --model gemma3:4b --language en
+python -m sloth_gist "C:\Users\you\Recordings" --since 24 --whisper small --model gemma3:4b --language en
 ```
 
 Use `--language hi` for Hindi, `--language mr` for Marathi, or omit the option
@@ -62,11 +65,15 @@ Supported audio formats: `.opus`, `.ogg`, `.m4a`, `.mp3`, `.wav`, `.aac`,
 `.mp4`, `.mkv`, `.mov`, `.webm`, `.avi`, `.m4v`.
 
 Digests are saved as Markdown and JSON under
-`~/Documents/SlothEars/Digests/`. Raw transcripts are not saved.
+`~/Documents/SlothGist/Digests/` (digests from the old
+`~/Documents/SlothEars/Digests/` folder are moved there automatically). Each run adds to the saved digest, newest
+first in the app; digesting the same recording or file again replaces its old
+card, and the last 200 cards are kept. **Wipe digest** clears them all. Raw
+transcripts and pasted text are not saved.
 
 ## Text and key points
 
-Sloth Ears can also digest text, with no Whisper step. In the web app, open the
+Sloth Gist can also digest text, with no Whisper step. In the web app, open the
 **Text** tab on the Drop Zone, then paste text (up to 200,000 characters) or
 open a `.txt` / `.md` file. The file is read in your browser and sent only to
 the local server on `127.0.0.1`.
@@ -84,7 +91,7 @@ From the CLI, pass `--text` with a `.txt`/`.md` file or a folder of them, and
 `--style line|points|both`:
 
 ```console
-python -m sloth_ears "C:\Users\you\Notes\meeting.md" --text --style both --model gemma3:4b
+python -m sloth_gist "C:\Users\you\Notes\meeting.md" --text --style both --model gemma3:4b
 ```
 
 The API accepts `POST /api/run` with `"mode": "text"` and either `"text"` (with
@@ -113,7 +120,7 @@ ollama pull gemma3:4b
 - Models need to be downloaded once before they can be used offline.
 - Small Whisper models are faster, but may be less accurate.
 - Hindi and Marathi transcription quality varies with the audio and model.
-- Sloth Ears summarizes **speech only**; video frames and visual content are
+- Sloth Gist summarizes **speech only**; video frames and visual content are
   ignored.
 - Local models use your computer’s memory and processing power.
 

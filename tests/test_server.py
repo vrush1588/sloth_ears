@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from sloth_ears import server
+from sloth_gist import server
 
 
 class ServerTests(unittest.TestCase):

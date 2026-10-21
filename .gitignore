@@ -16,7 +16,7 @@ ENV/
 models/
 
 # Private digest output
-sloth_ears_digest.md
+sloth_gist_digest.md
 *_digest.md
 design/
 
